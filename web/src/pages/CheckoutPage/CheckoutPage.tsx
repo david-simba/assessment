@@ -27,7 +27,9 @@ export function CheckoutPage() {
       <section className="rounded-2xl bg-white p-6 ring-1 ring-black/5">
         <h1 className="text-2xl font-semibold tracking-tight">Tus datos</h1>
         <p className="mt-2 text-sm text-ink/70">
-          Completa el checkout para <strong>{selection.eventTitle}</strong>.
+          Ingresa tu nombre y correo para reservar tus entradas de{' '}
+          <strong>{selection.eventTitle}</strong>. Te enviaremos el comprobante
+          a ese correo.
         </p>
 
         <form onSubmit={onSubmit} noValidate className="mt-6 space-y-4">

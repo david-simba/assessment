@@ -143,6 +143,52 @@ describe('OrdersService', () => {
         }),
       ).toThrow(BadRequestException);
     });
+
+    it('does not oversell: stock held by earlier orders is not available', () => {
+      for (let i = 0; i < 4; i++) {
+        service.create({
+          eventId: 'noche-salsa',
+          items: [{ ticketTypeId: 'salsa-vip', quantity: 2 }],
+        });
+      }
+
+      expect(() =>
+        service.create({
+          eventId: 'noche-salsa',
+          items: [{ ticketTypeId: 'salsa-vip', quantity: 1 }],
+        }),
+      ).toThrow(BadRequestException);
+    });
+
+    it('is atomic: a failing line leaves inventory and orders untouched', () => {
+      expect(() =>
+        service.create({
+          eventId: 'noche-salsa',
+          items: [
+            { ticketTypeId: 'salsa-general', quantity: 2 },
+            { ticketTypeId: 'salsa-vip', quantity: 3 },
+          ],
+        }),
+      ).toThrow(BadRequestException);
+
+      const types = store.events.find((e) => e.id === 'noche-salsa')!
+        .ticketTypes;
+      expect(types.find((t) => t.id === 'salsa-general')?.remaining).toBe(40);
+      expect(types.find((t) => t.id === 'salsa-vip')?.remaining).toBe(8);
+      expect(store.orders.size).toBe(0);
+    });
+
+    it('rounds the fee to the nearest cent', () => {
+      store.events[0].ticketTypes[0].priceCents = 1005; // 10% = 100.5
+
+      const order = service.create({
+        eventId: 'noche-salsa',
+        items: [{ ticketTypeId: 'salsa-general', quantity: 1 }],
+      });
+
+      expect(order.feeCents).toBe(101);
+      expect(order.totalCents).toBe(1106);
+    });
   });
 
   describe('confirm', () => {

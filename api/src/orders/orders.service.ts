@@ -39,7 +39,7 @@ export class OrdersService {
 
     const seen = new Set<string>();
 
-    const items = dto.items.map((line) => {
+    const lines = dto.items.map((line) => {
       if (seen.has(line.ticketTypeId)) {
         throw new BadRequestException(
           'No repitas la misma localidad en una orden',
@@ -77,24 +77,31 @@ export class OrdersService {
         );
       }
 
-      // TODO: decrement ticketType.remaining
-
       return {
-        ticketTypeId: ticketType.id,
-        name: ticketType.name,
-        quantity: line.quantity,
-        unitPriceCents: ticketType.priceCents,
-        lineTotalCents: ticketType.priceCents * line.quantity,
+        ticketType,
+        item: {
+          ticketTypeId: ticketType.id,
+          name: ticketType.name,
+          quantity: line.quantity,
+          unitPriceCents: ticketType.priceCents,
+          lineTotalCents: ticketType.priceCents * line.quantity,
+        },
       };
     });
 
+    // Every line is valid: only now hold inventory, so a failing line
+    // never leaves stock partially decremented.
+    for (const { ticketType, item } of lines) {
+      ticketType.remaining -= item.quantity;
+    }
+
+    const items = lines.map(({ item }) => item);
     const subtotalCents = items.reduce(
       (sum, item) => sum + item.lineTotalCents,
       0,
     );
 
-    // TODO: feeCents should be SERVICE_FEE_PERCENT of subtotalCents, rounded
-    const feeCents = 0;
+    const feeCents = Math.round((subtotalCents * SERVICE_FEE_PERCENT) / 100);
 
     const order: Order = {
       id: `ord_${randomUUID()}`,

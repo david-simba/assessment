@@ -15,7 +15,6 @@ import { CheckoutFormValues, checkoutSchema } from './checkout.schema';
 export type CheckoutError = {
   title: string;
   message: string;
-  /** 'reselect': the order was rejected, pick tickets again. 'retry': try again. */
   action: 'reselect' | 'retry';
 };
 
@@ -47,7 +46,6 @@ export function useCheckout(selection: CheckoutState | null) {
   const [checkoutError, setCheckoutError] = useState<CheckoutError | null>(
     null,
   );
-  // Values waiting to be confirmed right after the order is created.
   const pendingValues = useRef<CheckoutFormValues | null>(null);
 
   const form = useForm<CheckoutFormValues>({
@@ -59,8 +57,6 @@ export function useCheckout(selection: CheckoutState | null) {
   const create = useApiMutation<Order, Record<string, never>, CreateOrderBody>(
     createOrder,
   );
-  // confirmOrder needs the id in the URL, so the hook is bound to the id kept
-  // in state.
   const confirm = useApiMutation<Order, { id: string }, ConfirmOrderBody>(
     confirmOrder,
     { id: orderId ?? '' },
@@ -75,7 +71,6 @@ export function useCheckout(selection: CheckoutState | null) {
     }
   };
 
-  // Runs once the id is in state, so the confirm hook points at the new URL.
   useEffect(() => {
     if (!orderId || !pendingValues.current) return;
 
@@ -88,7 +83,6 @@ export function useCheckout(selection: CheckoutState | null) {
     if (!selection) return;
     setCheckoutError(null);
 
-    // The order already exists: retry only the confirmation.
     if (orderId) {
       await confirmWith(values);
       return;

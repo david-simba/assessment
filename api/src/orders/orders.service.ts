@@ -132,7 +132,9 @@ export class OrdersService {
   confirm(id: string, dto: ConfirmOrderDto): Order {
     const order = this.findById(id);
 
-    // TODO: reject when the order is not pending
+    if (order.status !== 'pending') {
+      throw new BadRequestException('La orden ya fue confirmada');
+    }
 
     order.status = 'confirmed';
     order.buyer = { name: dto.name, email: dto.email };

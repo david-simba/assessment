@@ -67,9 +67,12 @@ Vuelve algo así:
   "feeCents": 500,
   "totalCents": 5500,
   "buyer": null,
-  "createdAt": "2026-09-16T20:00:00.000Z"
+  "createdAt": "2026-09-16T20:00:00.000Z",
+  "expiresAt": "2026-09-16T20:15:00.000Z"
 }
 ```
+
+Una orden `pending` aparta el stock durante 15 minutos (`expiresAt`). Pasado ese tiempo, la orden pasa a `expired` y las entradas se liberan. Esto se evalúa al crear o consultar una orden.
 
 ## `GET /orders/:id`
 
@@ -84,3 +87,5 @@ Acá se manda quién compra:
 ```
 
 La orden vuelve con `status: "confirmed"` y `buyer` lleno.
+
+Si la orden no está `pending` (ya confirmada o `expired`), responde `400`.

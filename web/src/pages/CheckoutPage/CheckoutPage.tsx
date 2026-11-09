@@ -1,5 +1,5 @@
 import { Link, Navigate, useLocation } from 'react-router';
-import { TextField } from '~/components';
+import { Alert, TextField } from '~/components';
 import { CheckoutState } from '~/types';
 import { OrderSummary } from './OrderSummary';
 import { useCheckout } from './useCheckout';
@@ -60,28 +60,23 @@ export function CheckoutPage() {
           </button>
 
           {checkoutError && (
-            <div
-              role="alert"
-              className="flex gap-3 rounded-xl border border-l-4 border-red-200 border-l-red-400 bg-red-50 px-5 py-4 text-sm"
-            >
-            <div>
-                <p className="font-medium text-red-600">
-                  {checkoutError.title}
-                </p>
-                <p className="mt-1 text-slate-600">{checkoutError.message}</p>
-                {checkoutError.action === 'reselect' && (
-                  <Link
-                    to={`/events/${selection.eventId}`}
-                    className="mt-2 inline-block text-red-600"
-                  >
-                    <span aria-hidden className="mr-2">
-                      ←
-                    </span>
-                    <span className="underline">Volver a elegir entradas</span>
-                  </Link>
-                )}
-              </div>
-            </div>
+            <Alert 
+              title={checkoutError.title}
+              variant='error' 
+              >
+              <p>{checkoutError.message}</p>
+              {checkoutError.action === 'reselect' && (
+                <Link
+                  to={`/events/${selection.eventId}`}
+                  className="mt-2 inline-block text-red-600"
+                >
+                  <span aria-hidden className="mr-2">
+                    ←
+                  </span>
+                  <span className="underline">Volver a elegir entradas</span>
+                </Link>
+              )}
+            </Alert>
           )}
         </form>
       </section>

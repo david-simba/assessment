@@ -13,6 +13,9 @@ import { AppStore, Order } from '../store/store';
 /** Service fee applied on top of the ticket subtotal. */
 export const SERVICE_FEE_PERCENT = 10;
 
+/** Minutes a pending order holds inventory before it expires. */
+export const ORDER_TTL_MINUTES = 15;
+
 @Injectable()
 export class OrdersService {
   constructor(@Inject(APP_STORE) private readonly store: AppStore) {}
@@ -25,6 +28,8 @@ export class OrdersService {
    * orders.service.spec.ts.
    */
   create(dto: CreateOrderDto): Order {
+    this.releaseExpiredOrders();
+
     if (dto.items.length === 0) {
       throw new BadRequestException(
         'Debes seleccionar al menos una localidad',
@@ -103,6 +108,7 @@ export class OrdersService {
 
     const feeCents = Math.round((subtotalCents * SERVICE_FEE_PERCENT) / 100);
 
+    const now = new Date();
     const order: Order = {
       id: `ord_${randomUUID()}`,
       eventId: event.id,
@@ -112,7 +118,10 @@ export class OrdersService {
       feeCents,
       totalCents: subtotalCents + feeCents,
       buyer: null,
-      createdAt: new Date().toISOString(),
+      createdAt: now.toISOString(),
+      expiresAt: new Date(
+        now.getTime() + ORDER_TTL_MINUTES * 60_000,
+      ).toISOString(),
     };
 
     this.store.orders.set(order.id, order);
@@ -120,6 +129,8 @@ export class OrdersService {
   }
 
   findById(id: string): Order {
+    this.releaseExpiredOrders();
+
     const order = this.store.orders.get(id);
 
     if (!order) {
@@ -132,6 +143,12 @@ export class OrdersService {
   confirm(id: string, dto: ConfirmOrderDto): Order {
     const order = this.findById(id);
 
+    if (order.status === 'expired') {
+      throw new BadRequestException(
+        'La orden expiró. Elige tus entradas de nuevo',
+      );
+    }
+
     if (order.status !== 'pending') {
       throw new BadRequestException('La orden ya fue confirmada');
     }
@@ -139,5 +156,27 @@ export class OrdersService {
     order.status = 'confirmed';
     order.buyer = { name: dto.name, email: dto.email };
     return order;
+  }
+
+  /** Expires overdue pending orders and returns their held stock. */
+  private releaseExpiredOrders(): void {
+    const now = Date.now();
+
+    for (const order of this.store.orders.values()) {
+      if (order.status !== 'pending' || Date.parse(order.expiresAt) > now) {
+        continue;
+      }
+
+      const event = this.store.events.find((item) => item.id === order.eventId);
+
+      for (const item of order.items) {
+        const ticketType = event?.ticketTypes.find(
+          (type) => type.id === item.ticketTypeId,
+        );
+        if (ticketType) ticketType.remaining += item.quantity;
+      }
+
+      order.status = 'expired';
+    }
   }
 }

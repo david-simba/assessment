@@ -2,7 +2,11 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { createStore } from '../store/store';
 import { APP_STORE } from '../store/store.constants';
-import { OrdersService, SERVICE_FEE_PERCENT } from './orders.service';
+import {
+  ORDER_TTL_MINUTES,
+  OrdersService,
+  SERVICE_FEE_PERCENT,
+} from './orders.service';
 
 describe('OrdersService', () => {
   let service: OrdersService;
@@ -236,6 +240,76 @@ describe('OrdersService', () => {
           email: 'otra@example.com',
         }),
       ).toThrow(BadRequestException);
+    });
+  });
+
+  describe('expiration', () => {
+    const vipRemaining = () =>
+      store.events
+        .find((event) => event.id === 'noche-salsa')
+        ?.ticketTypes.find((type) => type.id === 'salsa-vip')?.remaining;
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-11-09T12:00:00.000Z'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    const createVip = () =>
+      service.create({
+        eventId: 'noche-salsa',
+        items: [{ ticketTypeId: 'salsa-vip', quantity: 2 }],
+      });
+
+    it('sets expiresAt 15 minutes after creation', () => {
+      const order = createVip();
+
+      expect(order.expiresAt).toBe('2026-11-09T12:15:00.000Z');
+    });
+
+    it('keeps stock held until the deadline', () => {
+      const order = createVip();
+      jest.advanceTimersByTime((ORDER_TTL_MINUTES * 60 - 1) * 1000);
+
+      expect(service.findById(order.id).status).toBe('pending');
+      expect(vipRemaining()).toBe(6);
+    });
+
+    it('expires the order and releases stock when queried after the deadline', () => {
+      const order = createVip();
+      jest.advanceTimersByTime(ORDER_TTL_MINUTES * 60_000);
+
+      expect(service.findById(order.id).status).toBe('expired');
+      expect(vipRemaining()).toBe(8);
+    });
+
+    it('releases expired stock when a new order is created', () => {
+      for (let i = 0; i < 4; i++) createVip();
+      jest.advanceTimersByTime(ORDER_TTL_MINUTES * 60_000);
+
+      expect(() => createVip()).not.toThrow();
+      expect(vipRemaining()).toBe(6);
+    });
+
+    it('rejects confirming an expired order', () => {
+      const order = createVip();
+      jest.advanceTimersByTime(ORDER_TTL_MINUTES * 60_000);
+
+      expect(() =>
+        service.confirm(order.id, { name: 'Ana', email: 'ana@example.com' }),
+      ).toThrow(BadRequestException);
+    });
+
+    it('never expires a confirmed order', () => {
+      const order = createVip();
+      service.confirm(order.id, { name: 'Ana', email: 'ana@example.com' });
+      jest.advanceTimersByTime(ORDER_TTL_MINUTES * 60_000 * 2);
+
+      expect(service.findById(order.id).status).toBe('confirmed');
+      expect(vipRemaining()).toBe(6);
     });
   });
 });

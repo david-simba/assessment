@@ -2,7 +2,12 @@ import { useParams } from 'react-router';
 import { eventById, orderById, useApiQuery } from '~/api';
 import { EventRecord, Order } from '~/types';
 
-export type OrderView = 'loading' | 'not-found' | 'not-confirmed' | 'ready';
+export type OrderView =
+  | 'loading'
+  | 'not-found'
+  | 'expired'
+  | 'not-confirmed'
+  | 'ready';
 
 export function useOrder() {
   const { orderId = '' } = useParams();
@@ -25,6 +30,7 @@ export function useOrder() {
   let view: OrderView = 'ready';
   if (isPending && orderId) view = 'loading';
   else if (isError || !order) view = 'not-found';
+  else if (order.status === 'expired') view = 'expired';
   else if (order.status !== 'confirmed') view = 'not-confirmed';
 
   return { orderId, order, eventTitle: event?.title, view };

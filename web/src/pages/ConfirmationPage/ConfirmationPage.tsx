@@ -30,6 +30,26 @@ export function ConfirmationPage() {
     );
   }
 
+  if (view === 'expired') {
+    return (
+      <main className="mx-auto max-w-lg px-4 py-16 text-center">
+        <h1 className="text-2xl font-medium tracking-tight">
+          Esta orden expiró
+        </h1>
+        <p className="mt-4 text-ink/70">
+          Pasaron más de 15 minutos sin confirmar y las entradas se liberaron.
+          Puedes elegirlas de nuevo.
+        </p>
+        <Link
+          to={`/events/${order.eventId}`}
+          className="mt-8 inline-block text-accent"
+        >
+          Volver al evento
+        </Link>
+      </main>
+    );
+  }
+
   if (view === 'not-confirmed') {
     return (
       <main className="mx-auto max-w-lg px-4 py-16 text-center">

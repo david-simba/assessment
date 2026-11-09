@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { Badge } from '~/components';
 import { formatUsd } from '~/lib/money';
 import { useOrder } from './useOrder';
 
@@ -52,9 +53,7 @@ export function ConfirmationPage() {
     <main className="flex flex-col items-center gap-2 py-10 md:gap-12">
       <div className="rounded-2xl md:w-1/3 sm:w-full bg-white p-6 ring-1 ring-black/5">
         <div className="flex justify-end">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-4 py-1 text-xs font-medium text-green-800">
-            Compra confirmada
-          </span>
+          <Badge variant="success">Compra confirmada</Badge>
         </div>
         <h1 className="mt-2 text-2xl font-medium tracking-tight">
           {eventTitle ?? 'Tu comprobante'}

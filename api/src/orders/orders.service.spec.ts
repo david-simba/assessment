@@ -134,6 +134,15 @@ describe('OrdersService', () => {
         }),
       ).toThrow(BadRequestException);
     });
+
+    it.each([0, -1, 1.5, NaN])('rejects invalid quantity %p', (quantity) => {
+      expect(() =>
+        service.create({
+          eventId: 'noche-salsa',
+          items: [{ ticketTypeId: 'salsa-general', quantity }],
+        }),
+      ).toThrow(BadRequestException);
+    });
   });
 
   describe('confirm', () => {

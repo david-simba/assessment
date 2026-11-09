@@ -37,7 +37,22 @@ export class OrdersService {
       throw new NotFoundException('Evento no encontrado');
     }
 
+    const seen = new Set<string>();
+
     const items = dto.items.map((line) => {
+      if (seen.has(line.ticketTypeId)) {
+        throw new BadRequestException(
+          'No repitas la misma localidad en una orden',
+        );
+      }
+      seen.add(line.ticketTypeId);
+
+      if (!Number.isInteger(line.quantity) || line.quantity < 1) {
+        throw new BadRequestException(
+          'La cantidad debe ser un entero de al menos 1',
+        );
+      }
+
       const ticketType = event.ticketTypes.find(
         (type) => type.id === line.ticketTypeId,
       );
@@ -46,8 +61,22 @@ export class OrdersService {
         throw new NotFoundException('Localidad no encontrada');
       }
 
-      // TODO: reject quantity > remaining and quantity > maxPerOrder
-      // TODO: reject duplicate ticketTypeId values in the same request
+      if (ticketType.remaining === 0) {
+        throw new BadRequestException(`${ticketType.name} está agotada`);
+      }
+
+      if (line.quantity > ticketType.maxPerOrder) {
+        throw new BadRequestException(
+          `Máximo ${ticketType.maxPerOrder} entradas ${ticketType.name} por orden`,
+        );
+      }
+
+      if (line.quantity > ticketType.remaining) {
+        throw new BadRequestException(
+          `Solo quedan ${ticketType.remaining} entradas ${ticketType.name}`,
+        );
+      }
+
       // TODO: decrement ticketType.remaining
 
       return {

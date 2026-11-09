@@ -1,25 +1,22 @@
-import { Navigate, useLocation } from 'react-router';
+import { Link, Navigate, useLocation } from 'react-router';
+import { TextField } from '~/components';
 import { CheckoutState } from '~/types';
+import { OrderSummary } from './OrderSummary';
+import { useCheckout } from './useCheckout';
 
-/**
- * TODO (frontend)
- *
- * Wire this page up. You already receive the selected tickets in
- * `location.state` (see CheckoutState).
- *
- * 1. Validate name + email with react-hook-form (Yup is already a dependency).
- * 2. Show a summary with the same 10% fee as the event page (`feeFromSubtotal`).
- * 3. On submit: useApiMutation with `createOrder`, then `confirmOrder`.
- * 4. Surface API errors (sold out, validation) and a submitting state.
- *
- * Suggested route after success: `/orders/:orderId`
- *
- *   const { mutateAsync: create } = useApiMutation<Order, Record<string, never>, CreateOrderBody>(createOrder);
- *   const { mutateAsync: confirm } = useApiMutation<Order, { id: string }, ConfirmOrderBody>(confirmOrder, { id });
- */
 export function CheckoutPage() {
   const location = useLocation();
   const selection = location.state as CheckoutState | null;
+  const {
+    form: {
+      register,
+      formState: { errors, isValid },
+    },
+    onSubmit,
+    checkoutError,
+    isRetry,
+    isSubmitting,
+  } = useCheckout(selection);
 
   if (!selection?.items.length) {
     return <Navigate to="/" replace />;
@@ -31,19 +28,64 @@ export function CheckoutPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Tus datos</h1>
         <p className="mt-2 text-sm text-ink/70">
           Completa el checkout para <strong>{selection.eventTitle}</strong>.
-          Esta pantalla es tuya: el formulario todavía no envía nada.
         </p>
-        <p className="mt-8 rounded-xl bg-paper px-4 py-3 text-sm text-ink/70">
-          Implementa el formulario aquí. Revisa <code>README.md</code>,{' '}
-          <code>useApiMutation</code> y los endpoints en <code>~/api</code>.
-        </p>
+
+        <form onSubmit={onSubmit} noValidate className="mt-6 space-y-4">
+          <TextField
+            label="Nombre"
+            autoComplete="name"
+            disabled={isSubmitting}
+            error={errors.name?.message}
+            {...register('name')}
+          />
+          <TextField
+            label="Correo"
+            type="email"
+            autoComplete="email"
+            disabled={isSubmitting}
+            error={errors.email?.message}
+            {...register('email')}
+          />
+
+          <button
+            type="submit"
+            disabled={!isValid || isSubmitting}
+            className="w-full rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-medium text-white enabled:cursor-pointer enabled:hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-ink/20 disabled:text-ink/40"
+          >
+            {isSubmitting
+              ? 'Procesando…'
+              : isRetry
+                ? 'Reintentar confirmación'
+                : 'Confirmar compra'}
+          </button>
+
+          {checkoutError && (
+            <div
+              role="alert"
+              className="flex gap-3 rounded-xl border border-l-4 border-red-200 border-l-red-400 bg-red-50 px-5 py-4 text-sm"
+            >
+            <div>
+                <p className="font-medium text-red-600">
+                  {checkoutError.title}
+                </p>
+                <p className="mt-1 text-slate-600">{checkoutError.message}</p>
+                {checkoutError.action === 'reselect' && (
+                  <Link
+                    to={`/events/${selection.eventId}`}
+                    className="mt-2 inline-block text-red-600"
+                  >
+                    <span aria-hidden className="mr-2">
+                      ←
+                    </span>
+                    <span className="underline">Volver a elegir entradas</span>
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+        </form>
       </section>
-      <aside className="h-max rounded-2xl bg-white p-5 ring-1 ring-black/5">
-        <h2 className="font-semibold">Resumen</h2>
-        <p className="mt-3 text-sm text-ink/60">
-          Muestra localidades, cargo por servicio y total.
-        </p>
-      </aside>
+      <OrderSummary items={selection.items} />
     </main>
   );
 }
